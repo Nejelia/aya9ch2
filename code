@@ -1,0 +1,263 @@
+Program.cs
+  using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Newtonsoft.Json.Linq;
+
+namespace Lab9_2
+{
+    static class Program
+    {
+        /// <summary>
+        /// Точка входа в приложение.
+        /// </summary>
+        [STAThread]
+        static void Main() // Точка входа в приложение
+        {
+            System.Windows.Forms.Application.EnableVisualStyles();
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+            System.Windows.Forms.Application.Run(new Form2());
+        }
+    }
+
+    public partial class Form2 : Form
+    {
+        // API ключ для OpenWeatherMap
+        private static readonly string API_KEY = "e4e82117475c1199149333e62a9634f0";
+        private ComboBox comboBoxCities;
+        private ListBox listBoxCities;
+
+        public Form2()
+        {
+            InitializeComponent(); // Инициализация элементов управления на форме
+            Components();
+        }
+
+        private void Components()
+        {
+            // Настройки формы
+            Width = 400;
+            Height = 300;
+            Text = "Weather App";
+
+            // Создание элементов управления
+            comboBoxCities = new ComboBox();
+            comboBoxCities.Dock = DockStyle.Top;
+
+            listBoxCities = new ListBox();
+            listBoxCities.Width = 500;
+            listBoxCities.Height = 500;
+            listBoxCities.Left = 150;
+            listBoxCities.Top = 200;
+
+            var btnFetchCities = new Button();
+            btnFetchCities.Text = "Show Cities";
+            btnFetchCities.Width = 500;
+            btnFetchCities.Height = 100;
+            btnFetchCities.Left = 150;
+            btnFetchCities.Top = 100;
+            btnFetchCities.Click += BtnFetchCitiesClick;
+
+            var btnFetchWeather = new Button();
+            btnFetchWeather.Text = "Show Weather";
+            btnFetchWeather.Width = 500;
+            btnFetchWeather.Height = 100;
+            btnFetchWeather.Left = 850;
+            btnFetchWeather.Top = 100;
+            // TODO: implement click +=;
+            btnFetchWeather.Click += BtnFetchWeatherClick;
+
+            // Добавление элементов на форму
+            Controls.Add(btnFetchCities);
+            Controls.Add(btnFetchWeather);
+            Controls.Add(listBoxCities);
+        }
+
+        private async void BtnFetchCitiesClick(object sender, EventArgs e)
+        {
+            listBoxCities.Text = "";
+            var cities = await LoadCitiesFromFile("C:\\Xiaomi\\lab9aya2\\city.txt");
+            listBoxCities.Items.AddRange(cities.ToArray());
+        }
+
+        private async Task<List<string>> LoadCitiesFromFile(string path)
+        {
+            // Загрузка списка городов из файла
+            List<string> datas = new List<string>();
+            using (StreamReader reader = new StreamReader(path))
+            {
+                while (!reader.EndOfStream)
+                {
+                    string line = await reader.ReadLineAsync();
+                    datas.Add(line);
+                }
+            }
+
+            // Обработка данных и формирование списка городов
+            List<string> cities = new List<string>();
+            for (int i = 0; i < datas.Count(); ++i)
+            {
+                int count = 0;
+                for (int j = 0; j < datas[i].Length; ++j)
+                {
+                    if (datas[i][j].Equals('\t'))
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        ++count;
+                    }
+                }
+                cities.Add(datas[i].Substring(0, count));
+            }
+            return cities;
+        }
+
+        private async void BtnFetchWeatherClick(object sender, EventArgs e)
+        {
+            // Обработчик события кнопки "Show Weather"
+            string city = listBoxCities.SelectedItem.ToString();
+
+            if (string.IsNullOrEmpty(city))
+            {
+                MessageBox.Show("Please select a city.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                Weather weather = await FetchWeather(city);
+                MessageBox.Show($"{weather.Country} - {weather.Name}: {weather.Temp - 273}°C, {weather.Description}",
+                    "Weather Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task<Weather> FetchWeather(string city)
+        {
+            // Отправка запроса о погоде на OpenWeatherMap
+            string apiUrl = $"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}";
+
+            using (HttpClient client = new HttpClient())
+            {
+                HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string jsonData = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(jsonData);
+
+                    // Извлечение данных о погоде из JSON-ответа
+                    string country = json["sys"]["country"].ToString();
+                    string name = json["name"].ToString();
+                    double temp = Convert.ToDouble(json["main"]["temp"]);
+                    string description = json["weather"][0]["description"].ToString();
+
+                    return new Weather
+                    {
+                        Country = country,
+                        Name = name,
+                        Temp = temp,
+                        Description = description
+                    };
+                }
+                else
+                {
+                    throw new Exception($"HTTP error: {response.StatusCode}");
+                }
+            }
+        }
+    }
+
+    // Структура для хранения данных о погоде
+    struct Weather
+    {
+        public string Country { get; set; }
+        public string Name { get; set; }
+        public double Temp { get; set; }
+        public string Description { get; set; }
+    }
+}
+
+
+Form.cs
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Lab9_2
+{
+/*    public partial class Form2 : Form
+    {
+        public Form2()
+        {
+            InitializeComponent();
+        }
+    }*/
+}
+
+Formdesigner.cs
+namespace Lab9_2
+{
+    // Частичный класс Form2
+    partial class Form2
+    {
+        /// <summary>
+        /// Обязательная переменная дизайнера.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Освобождение занятых ресурсов.
+        /// </summary>
+        /// <param name="disposing">true, если управляемые ресурсы должны быть освобождены; в противном случае false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                // Освободить компоненты формы
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Метод, вызываемый для поддержки конструктора кода.
+        /// Не изменяйте содержимое этого метода с помощью редактора кода.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // Form2
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(865, 314);
+            this.Name = "Form2";
+            this.Text = "Form2";
+            this.ResumeLayout(false);
+
+        }
+
+        #endregion
+    }
+}
+
+  
